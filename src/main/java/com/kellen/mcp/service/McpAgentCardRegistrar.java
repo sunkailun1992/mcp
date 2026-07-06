@@ -2,6 +2,7 @@ package com.kellen.mcp.service;
 
 import com.alibaba.nacos.api.ai.AiFactory;
 import com.alibaba.nacos.api.ai.AiService;
+import com.alibaba.nacos.api.ai.constant.AiConstants;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCapabilities;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentInterface;
@@ -72,7 +73,11 @@ public class McpAgentCardRegistrar {
         int port = properties.advertisePort() > 0 ? properties.advertisePort() : serverPort;
         for (int attempt = 1; attempt <= RELEASE_ATTEMPTS; attempt++) {
             try {
-                currentAiService().releaseAgentCard(buildCard(host, port), text(properties.namespace()), true);
+                currentAiService().releaseAgentCard(
+                        buildCard(host, port),
+                        AiConstants.A2a.A2A_ENDPOINT_TYPE_URL,
+                        true
+                );
                 log.info("已发布 MCP AgentCard: agent={}, toolsUrl={}", properties.agentName(),
                         interfaceUrl(host, port, "/api/mcp/tools"));
                 return;
