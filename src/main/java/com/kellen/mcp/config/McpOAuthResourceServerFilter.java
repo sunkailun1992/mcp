@@ -1,6 +1,7 @@
 package com.kellen.mcp.config;
 
 import com.kellen.security.SecurityUser;
+import com.kellen.mcp.security.McpVerifiedCaller;
 import com.kellen.utils.auth.JwtUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -50,6 +51,8 @@ public class McpOAuthResourceServerFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        request.removeAttribute(McpVerifiedCaller.REQUEST_ATTRIBUTE);
+        SecurityContextHolder.clearContext();
         try {
             String authorization = request.getHeader("Authorization");
             if (StringUtils.isBlank(authorization) || !authorization.startsWith(BEARER_PREFIX)) {
@@ -110,7 +113,10 @@ public class McpOAuthResourceServerFilter extends OncePerRequestFilter {
                     authorities.stream().map(SimpleGrantedAuthority::new).toList()
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            filterChain.doFilter(request, response);
+            request.setAttribute(McpVerifiedCaller.REQUEST_ATTRIBUTE, new McpVerifiedCaller(
+                    claims.get("client_id", String.class),
+                    firstNotBlank(claims.get("userId", String.class), claims.getSubject()),
+                    claims.get("tenantId", String.class), scopes(claims)));
         } catch (Exception e) {
             reject(
                     request,
@@ -120,7 +126,14 @@ public class McpOAuthResourceServerFilter extends OncePerRequestFilter {
                     "MCP OAuth token is invalid",
                     requiredScopes()
             );
+            SecurityContextHolder.clearContext();
+            return;
+        }
+        try {
+            // 认证失败才返回 OAuth challenge；业务/connector 错误不能被改写成 token 失效。
+            filterChain.doFilter(request, response);
         } finally {
+            request.removeAttribute(McpVerifiedCaller.REQUEST_ATTRIBUTE);
             SecurityContextHolder.clearContext();
         }
     }

@@ -27,6 +27,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -47,15 +48,21 @@ public class McpServerRegistrar {
     private final McpServerRegistryProperties properties;
     private final McpToolCatalogService toolCatalogService;
     private final int serverPort;
+    private final McpReleaseVersion releaseVersion;
+    private final McpRegistryPublicationService publication;
 
     private volatile AiService aiService;
 
     public McpServerRegistrar(McpServerRegistryProperties properties,
                               McpToolCatalogService toolCatalogService,
-                              @Value("${server.port:7700}") int serverPort) {
+                              @Value("${server.port:7700}") int serverPort,
+                              McpReleaseVersion releaseVersion,
+                              McpRegistryPublicationService publication) {
         this.properties = properties;
         this.toolCatalogService = toolCatalogService;
         this.serverPort = serverPort;
+        this.releaseVersion = releaseVersion;
+        this.publication = publication;
     }
 
     /**
@@ -78,35 +85,32 @@ public class McpServerRegistrar {
         }
         for (int attempt = 1; attempt <= RELEASE_ATTEMPTS; attempt++) {
             try {
-                String mcpId = currentAiService().releaseMcpServer(
-                        buildServerSpecification(),
-                        buildToolSpecification(),
-                        buildEndpointSpecification()
-                );
-                log.info("已发布 MCP Server: name={}, version={}, mcpId={}, exportPath={}",
-                        properties.serverName(), properties.version(), mcpId, properties.exportPath());
+                McpServerBasicInfo server = buildServerSpecification(releaseVersion.requireVersion());
+                McpRegistryPublicationService.Outcome outcome = publication.publishMcp(currentAiService(),
+                        properties.serverAddr(), properties.namespace(), server,
+                        buildToolSpecification(), buildEndpointSpecification());
+                log.info("MCP Server 自动发布已核对: name={}, version={}, outcome={}",
+                        server.getName(), server.getVersion(), outcome);
+                return;
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                log.warn("MCP Server 自动发布已中断，未继续重试，name={}", properties.serverName());
                 return;
             } catch (NacosException | RuntimeException exception) {
-                if (isAlreadyReleased(exception)) {
-                    log.info("MCP Server 已存在，按幂等发布成功处理，name={}, version={}, message={}",
-                            properties.serverName(), properties.version(), exception.getMessage());
-                    return;
-                }
                 if (attempt >= RELEASE_ATTEMPTS) {
-                    log.error("发布 MCP Server 失败，name={}, version={}, attempts={}, message={}",
-                            properties.serverName(), properties.version(), attempt, exception.getMessage());
+                    log.error("发布 MCP Server 失败，name={}, artifactVersion={}, attempts={}, errorType={}, errorCode={}",
+                            properties.serverName(), releaseVersion.displayVersion(), attempt,
+                            exception.getClass().getSimpleName(), NacosAiRegistrySupport.publicationErrorCode(exception));
                     return;
                 }
-                log.warn("发布 MCP Server 失败，准备重试，name={}, version={}, attempt={}, message={}",
-                        properties.serverName(), properties.version(), attempt, exception.getMessage());
-                sleepBeforeRetry();
+                log.warn("发布 MCP Server 失败，准备重试，name={}, artifactVersion={}, attempt={}, errorType={}, errorCode={}",
+                        properties.serverName(), releaseVersion.displayVersion(), attempt,
+                        exception.getClass().getSimpleName(), NacosAiRegistrySupport.publicationErrorCode(exception));
+                if (!sleepBeforeRetry()) {
+                    return;
+                }
             }
         }
-    }
-
-    private boolean isAlreadyReleased(Exception exception) {
-        String message = exception.getMessage();
-        return message != null && message.toLowerCase().contains("already exist");
     }
 
     private AiService currentAiService() throws NacosException {
@@ -140,11 +144,11 @@ public class McpServerRegistrar {
         try {
             service.shutdown();
         } catch (NacosException exception) {
-            log.debug("关闭 MCP Server Nacos AI Registry SDK 客户端失败，message={}", exception.getMessage());
+            log.debug("关闭 MCP Server Nacos SDK 客户端失败，errorCode={}", exception.getErrCode());
         }
     }
 
-    private McpServerBasicInfo buildServerSpecification() {
+    private McpServerBasicInfo buildServerSpecification(String version) {
         McpServerBasicInfo server = new McpServerBasicInfo();
         server.setName(NacosAiRegistrySupport.textOrDefault(properties.serverName(), "mcp"));
         server.setProtocol(normalizedProtocol());
@@ -155,8 +159,8 @@ public class McpServerRegistrar {
         ));
         server.setEnabled(true);
         server.setStatus(AiConstants.Mcp.MCP_STATUS_ACTIVE);
-        server.setVersion(NacosAiRegistrySupport.textOrDefault(properties.version(), "1.0.0"));
-        server.setVersionDetail(versionDetail());
+        server.setVersion(version);
+        server.setVersionDetail(versionDetail(version));
         server.setRemoteServerConfig(remoteServerConfig());
         if (StringUtils.hasText(properties.namespace())) {
             server.setNamespaceId(properties.namespace().trim());
@@ -164,9 +168,9 @@ public class McpServerRegistrar {
         return server;
     }
 
-    private ServerVersionDetail versionDetail() {
+    private ServerVersionDetail versionDetail(String version) {
         ServerVersionDetail detail = new ServerVersionDetail();
-        detail.setVersion(NacosAiRegistrySupport.textOrDefault(properties.version(), "1.0.0"));
+        detail.setVersion(version);
         detail.setRelease_date(LocalDate.now().toString());
         detail.setIs_latest(true);
         return detail;
@@ -180,7 +184,7 @@ public class McpServerRegistrar {
         serviceRef.setNamespaceId(NacosAiRegistrySupport.text(properties.namespace()));
         serviceRef.setGroupName(NacosAiRegistrySupport.textOrDefault(properties.groupName(), "DEFAULT_GROUP"));
         serviceRef.setServiceName(NacosAiRegistrySupport.textOrDefault(properties.serviceName(), "mcp"));
-        serviceRef.setTransportProtocol(frontProtocolFor(normalizedProtocol()));
+        serviceRef.setTransportProtocol(transportProtocol());
         remote.setServiceRef(serviceRef);
         return remote;
     }
@@ -231,6 +235,11 @@ public class McpServerRegistrar {
 
     private McpEndpointSpec buildEndpointSpecification() {
         McpEndpointSpec endpoint = new McpEndpointSpec();
+        if (StringUtils.hasText(properties.publicBaseUrl())) {
+            endpoint.setType(AiConstants.Mcp.MCP_ENDPOINT_TYPE_DIRECT);
+            endpoint.setData(directEndpointData());
+            return endpoint;
+        }
         String endpointType = NacosAiRegistrySupport.textOrDefault(
                 properties.endpointType(), AiConstants.Mcp.MCP_ENDPOINT_TYPE_REF).toUpperCase();
         if (AiConstants.Mcp.MCP_ENDPOINT_TYPE_DIRECT.equals(endpointType)) {
@@ -248,17 +257,37 @@ public class McpServerRegistrar {
         data.put("namespaceId", NacosAiRegistrySupport.text(properties.namespace()));
         data.put("groupName", NacosAiRegistrySupport.textOrDefault(properties.groupName(), "DEFAULT_GROUP"));
         data.put("serviceName", NacosAiRegistrySupport.textOrDefault(properties.serviceName(), "mcp"));
+        data.put("transportProtocol", transportProtocol());
         return data;
     }
 
     private Map<String, String> directEndpointData() {
+        if (StringUtils.hasText(properties.publicBaseUrl())) {
+            var gateway = McpRegistryGatewayAddress.parse(properties.publicBaseUrl());
+            return Map.of("address", gateway.host(), "port", Integer.toString(gateway.port()),
+                    "transportProtocol", gateway.scheme());
+        }
         String host = NacosAiRegistrySupport.resolveAdvertiseHost(
                 properties.advertiseHost(), log, "mcp.server.registry.advertise-host");
         int port = properties.advertisePort() > 0 ? properties.advertisePort() : serverPort;
         Map<String, String> data = new LinkedHashMap<>();
         data.put("address", host);
         data.put("port", String.valueOf(port));
+        data.put("transportProtocol", transportProtocol());
         return data;
+    }
+
+    /** Nacos 以该字段组装后端 URL，MCP 的 streamable-http 不能作为 URL scheme。 */
+    private String transportProtocol() {
+        if (StringUtils.hasText(properties.publicBaseUrl())) {
+            return McpRegistryGatewayAddress.parse(properties.publicBaseUrl()).scheme();
+        }
+        String scheme = NacosAiRegistrySupport.textOrDefault(properties.transportProtocol(), "http")
+                .toLowerCase(Locale.ROOT);
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new IllegalArgumentException("MCP_REGISTRY_INVALID_TRANSPORT_PROTOCOL");
+        }
+        return scheme;
     }
 
     private String normalizedProtocol() {
@@ -283,11 +312,13 @@ public class McpServerRegistrar {
         return protocol;
     }
 
-    private void sleepBeforeRetry() {
+    private boolean sleepBeforeRetry() {
         try {
             Thread.sleep(RELEASE_RETRY_DELAY_MILLIS);
+            return true;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            return false;
         }
     }
 }

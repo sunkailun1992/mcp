@@ -1,6 +1,8 @@
 package com.kellen.mcp.service;
 
 import com.alibaba.nacos.api.PropertyKeyConst;
+import com.alibaba.nacos.api.exception.NacosException;
+import com.alibaba.nacos.api.exception.runtime.NacosRuntimeException;
 import org.slf4j.Logger;
 import org.springframework.util.StringUtils;
 
@@ -82,6 +84,19 @@ final class NacosAiRegistrySupport {
 
     static String text(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    /** 注册日志只接收数字状态码或本服务固定原因码，不输出 SDK 原始错误正文。 */
+    static String publicationErrorCode(Exception exception) {
+        if (exception instanceof NacosException nacos) {
+            return Integer.toString(nacos.getErrCode());
+        }
+        if (exception instanceof NacosRuntimeException nacos) {
+            return Integer.toString(nacos.getErrCode());
+        }
+        String reason = exception.getMessage();
+        return reason != null && reason.matches("MCP_REGISTRY_[A-Z_]{1,64}")
+                ? reason : "PUBLICATION_CHECK_FAILED";
     }
 
     static String textOrDefault(String value, String defaultValue) {

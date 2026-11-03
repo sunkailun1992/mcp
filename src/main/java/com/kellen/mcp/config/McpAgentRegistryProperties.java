@@ -20,10 +20,11 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param advertisePort   AgentCard 对外暴露端口；为 0 时回退到 {@code server.port}。
  * @param supportTls      AgentCard 端点是否使用 HTTPS。
  * @param protocolVersion A2A 协议版本号。
- * @param cardVersion     AgentCard 版本号，接口地址、技能或描述变化时递增。
+ * @param cardVersion     遗留手工版本键，仅保留配置兼容；实际发布版本来自制品构建信息。
  * @param tenant          A2A 端点租户标识，可按部署隔离需要留空或配置。
  * @param providerOrg     AgentCard provider.organization 展示名。
  * @param agentName       MCP 工具 Agent 名称，供 AI 服务从 AI Registry 读取。
+ * @param publicBaseUrl   MCP AgentCard 使用的网关根地址；优先于旧 host/port/TLS，保留 /api/mcp 接口路径。
  */
 @ConfigurationProperties(prefix = "mcp.agent.registry")
 public record McpAgentRegistryProperties(
@@ -37,9 +38,10 @@ public record McpAgentRegistryProperties(
         @DefaultValue("0") int advertisePort,
         @DefaultValue("false") boolean supportTls,
         @DefaultValue("1.0") String protocolVersion,
-        @DefaultValue("1.0.0") String cardVersion,
+        @DefaultValue("1.0.1") String cardVersion,
         @DefaultValue("") String tenant,
         @DefaultValue("Kellen MCP") String providerOrg,
-        @DefaultValue("mcp-tool-agent") String agentName
+        @DefaultValue("mcp-tool-agent") String agentName,
+        @DefaultValue("") String publicBaseUrl
 ) {
 }

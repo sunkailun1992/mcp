@@ -2,7 +2,6 @@ package com.kellen.mcp.service;
 
 import com.alibaba.nacos.api.ai.AiFactory;
 import com.alibaba.nacos.api.ai.AiService;
-import com.alibaba.nacos.api.ai.constant.AiConstants;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCapabilities;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentInterface;
@@ -41,13 +40,19 @@ public class McpAgentCardRegistrar {
 
     private final McpAgentRegistryProperties properties;
     private final int serverPort;
+    private final McpReleaseVersion releaseVersion;
+    private final McpRegistryPublicationService publication;
 
     private volatile AiService aiService;
 
     public McpAgentCardRegistrar(McpAgentRegistryProperties properties,
-                                 @Value("${server.port:7700}") int serverPort) {
+                                 @Value("${server.port:7700}") int serverPort,
+                                 McpReleaseVersion releaseVersion,
+                                 McpRegistryPublicationService publication) {
         this.properties = properties;
         this.serverPort = serverPort;
+        this.releaseVersion = releaseVersion;
+        this.publication = publication;
     }
 
     /**
@@ -68,28 +73,35 @@ public class McpAgentCardRegistrar {
             log.info("MCP AgentCard 自动注册未启用，跳过 Nacos AI Registry 发布。");
             return;
         }
-        String host = NacosAiRegistrySupport.resolveAdvertiseHost(
-                properties.advertiseHost(), log, "mcp.agent.registry.advertise-host");
+        String host = StringUtils.hasText(properties.publicBaseUrl()) ? ""
+                : NacosAiRegistrySupport.resolveAdvertiseHost(
+                        properties.advertiseHost(), log, "mcp.agent.registry.advertise-host");
         int port = properties.advertisePort() > 0 ? properties.advertisePort() : serverPort;
         for (int attempt = 1; attempt <= RELEASE_ATTEMPTS; attempt++) {
             try {
-                currentAiService().releaseAgentCard(
-                        buildCard(host, port),
-                        AiConstants.A2a.A2A_ENDPOINT_TYPE_URL,
-                        true
-                );
-                log.info("已发布 MCP AgentCard: agent={}, toolsUrl={}", properties.agentName(),
-                        interfaceUrl(host, port, "/api/mcp/tools"));
+                AgentCard card = buildCard(host, port, releaseVersion.requireVersion());
+                McpRegistryPublicationService.Outcome outcome = publication.publishAgent(currentAiService(),
+                        properties.serverAddr(), properties.namespace(), card);
+                log.info("MCP AgentCard 自动发布已核对: agent={}, version={}, outcome={}",
+                        card.getName(), card.getVersion(), outcome);
+                return;
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                log.warn("MCP AgentCard 自动发布已中断，未继续重试，agent={}", properties.agentName());
                 return;
             } catch (NacosException | RuntimeException exception) {
                 if (attempt >= RELEASE_ATTEMPTS) {
-                    log.error("发布 MCP AgentCard 失败，agent={}, attempts={}, message={}",
-                            properties.agentName(), attempt, exception.getMessage());
+                    log.error("发布 MCP AgentCard 失败，agent={}, artifactVersion={}, attempts={}, errorType={}, errorCode={}",
+                            properties.agentName(), releaseVersion.displayVersion(), attempt,
+                            exception.getClass().getSimpleName(), NacosAiRegistrySupport.publicationErrorCode(exception));
                     return;
                 }
-                log.warn("发布 MCP AgentCard 失败，准备重试，agent={}, attempt={}, message={}",
-                        properties.agentName(), attempt, exception.getMessage());
-                sleepBeforeRetry();
+                log.warn("发布 MCP AgentCard 失败，准备重试，agent={}, artifactVersion={}, attempt={}, errorType={}, errorCode={}",
+                        properties.agentName(), releaseVersion.displayVersion(), attempt,
+                        exception.getClass().getSimpleName(), NacosAiRegistrySupport.publicationErrorCode(exception));
+                if (!sleepBeforeRetry()) {
+                    return;
+                }
             }
         }
     }
@@ -125,15 +137,15 @@ public class McpAgentCardRegistrar {
         try {
             service.shutdown();
         } catch (NacosException exception) {
-            log.debug("关闭 MCP Nacos AI Registry SDK 客户端失败，message={}", exception.getMessage());
+            log.debug("关闭 MCP Nacos SDK 客户端失败，errorCode={}", exception.getErrCode());
         }
     }
 
-    private AgentCard buildCard(String host, int port) {
+    private AgentCard buildCard(String host, int port, String version) {
         AgentCard card = new AgentCard();
         card.setName(properties.agentName());
         card.setDescription("Kellen MCP 工具接入 Agent，负责暴露三方系统工具目录和受控工具调用入口。");
-        card.setVersion(properties.cardVersion());
+        card.setVersion(version);
         card.setProtocolVersion(properties.protocolVersion());
         card.setCapabilities(capabilities());
         card.setSkills(skills());
@@ -199,19 +211,20 @@ public class McpAgentCardRegistrar {
     }
 
     private String interfaceUrl(String host, int port, String path) {
+        if (StringUtils.hasText(properties.publicBaseUrl())) {
+            return McpRegistryGatewayAddress.parse(properties.publicBaseUrl()).endpoint(path);
+        }
         String scheme = properties.supportTls() ? "https" : "http";
         return scheme + "://" + host + ":" + port + path;
     }
 
-    private String text(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private void sleepBeforeRetry() {
+    private boolean sleepBeforeRetry() {
         try {
             Thread.sleep(RELEASE_RETRY_DELAY_MILLIS);
+            return true;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            return false;
         }
     }
 }

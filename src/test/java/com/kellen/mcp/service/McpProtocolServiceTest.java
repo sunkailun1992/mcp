@@ -32,10 +32,36 @@ class McpProtocolServiceTest {
                     "REF",
                     "mcp",
                     "DEFAULT_GROUP",
+                    "http",
                     "",
-                    0
-            )
+                    0,
+                    ""
+            ),
+            artifactVersion()
     );
+
+    private static McpReleaseVersion artifactVersion() {
+        java.util.Properties properties = new java.util.Properties();
+        properties.setProperty("version", "1.0.4");
+        var beans = new org.springframework.beans.factory.support.StaticListableBeanFactory(
+                Map.of("buildProperties", new org.springframework.boot.info.BuildProperties(properties)));
+        return new McpReleaseVersion(beans.getBeanProvider(org.springframework.boot.info.BuildProperties.class));
+    }
+
+    @Test
+    void initializeReportsArtifactVersionInsteadOfLegacyRegistryVersion() {
+        Map<String, Object> response = service.handle(Map.of(
+                "jsonrpc", "2.0", "id", 10, "method", "initialize")).orElseThrow();
+        assertThat(result(response).get("serverInfo")).isEqualTo(Map.of("name", "mcp", "version", "1.0.4"));
+    }
+
+    @Test
+    void rejectedToolCallIsMarkedAsProtocolError() {
+        Map<String, Object> response = service.handle(Map.of(
+                "jsonrpc", "2.0", "id", 11, "method", "tools/call",
+                "params", Map.of("name", "user-profile.tags-by-wechat-name", "arguments", Map.of()))).orElseThrow();
+        assertThat(result(response)).containsEntry("isError", true);
+    }
 
     @BeforeEach
     void setUpSecurityContext() {

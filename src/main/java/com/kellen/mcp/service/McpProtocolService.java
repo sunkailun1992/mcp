@@ -29,11 +29,14 @@ public class McpProtocolService {
 
     private final McpToolCatalogService toolCatalogService;
     private final McpServerRegistryProperties registryProperties;
+    private final McpReleaseVersion releaseVersion;
 
     public McpProtocolService(McpToolCatalogService toolCatalogService,
-                              McpServerRegistryProperties registryProperties) {
+                              McpServerRegistryProperties registryProperties,
+                              McpReleaseVersion releaseVersion) {
         this.toolCatalogService = toolCatalogService;
         this.registryProperties = registryProperties;
+        this.releaseVersion = releaseVersion;
     }
 
     /**
@@ -100,7 +103,7 @@ public class McpProtocolService {
 
         Map<String, Object> serverInfo = new LinkedHashMap<>();
         serverInfo.put("name", NacosAiRegistrySupport.textOrDefault(registryProperties.serverName(), "mcp"));
-        serverInfo.put("version", NacosAiRegistrySupport.textOrDefault(registryProperties.version(), "1.0.0"));
+        serverInfo.put("version", releaseVersion.displayVersion());
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("protocolVersion", NacosAiRegistrySupport.textOrDefault(
@@ -151,7 +154,7 @@ public class McpProtocolService {
                 "text", toolResponse.message()
         )));
         result.put("structuredContent", toolResponse.result());
-        result.put("isError", false);
+        result.put("isError", !"ACCEPTED".equals(toolResponse.state()));
         return response(id, result);
     }
 
