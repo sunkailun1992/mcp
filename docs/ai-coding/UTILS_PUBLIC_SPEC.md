@@ -10,27 +10,18 @@
 | `ErrorCode.md` | `archive/utils-markdown/ErrorCode.md` | 统一错误码分类和错误信息 |
 | `Specification.md` | `archive/utils-markdown/Specification.md` | 压缩版 Java 开发规范，已去掉图片和外部网站地址 |
 
-## 环境规则
+## 环境与分支规则
 
-- `alpha` 是测试环境。
-- `bate` 是预发环境。
-- 公测测试是灰度环境。
-- 产品验收是正式环境。
-- 严禁在正式环境制造或修改测试数据。
-- 正式环境问题必须走钉钉流程，不能直接在线修改。
-
-## 分支规则
-
-- `personal` 融合 `dev` 时两个分支必须保持同步版本。
-- 禁止不同版本分支直接融合。
-- 修复 bug 时新建 bug 修复分支。
-- bug 修复完成后，需要向上融合到所有后续迭代版本分支。
-- bug 修复分支完成融合后再删除。
+- 个人环境使用独立 GitHub Nacos namespace，与公司环境隔离；真实环境入口和私有 dev 连接配置以 ENVIRONMENT_CONFIG_SPEC.md 为准。
+- 长期保留 main/test/preprod；新任务从最新 main 建完整功能分支，test/preprod 集成后保留，完整功能及配套进入 main 并远端确认后才清理。
+- 保护未合入、唯一提交、dirty 和其他 worktree；完整流程与授权按 BRANCHING_SPEC.md，不沿用旧 personal/dev 或公司部署流程。
+- 正式环境不制造测试数据；配置、数据库、发布与回滚均按明确任务授权及独立验证执行。
+- archive/utils-markdown/ 下保留原始历史事实，不作为当前分支、公司协作平台或环境指令。
 
 ## 数据库规则
 
-- 迭代版本涉及数据库表结构变动时，必须同步 Navicat 协作组模型设计。
-- 表结构变更 SQL 必须记录到对应后端开发需求备注。
+- 迭代涉及数据库表结构变动时，必须同步可审查的 migration、表设计与兼容/回滚说明。
+- 表结构变更 SQL 记录到本仓 migration 与交付说明，不依赖公司协作工具。
 - 每个数据库状态字段都必须有对应枚举类。
 - 整数状态枚举必须实现 `IEnum<Integer>`，用于接口返回和中文说明输出。
 - `type`、`state` 等业务字段由具体业务模块定义，不写入 `EntityBase`。

@@ -75,7 +75,7 @@ MCP 主动调用外部系统时如需出站 API Key、OAuth token 或 Webhook se
 
 ## 基础设施地址
 
-除 `application.yml` 中连接 Nacos 自身的启动入口外，MySQL、Redis、Seata、XXL-JOB、Elasticsearch、Kibana、Zipkin 等基础设施地址统一放在 Nacos `reuse-configuration.yaml`。
+除 `application-*.yml` 中连接 Nacos 自身的启动入口外，MySQL、Redis、Seata、XXL-JOB、Elasticsearch、Kibana、Zipkin 等基础设施地址统一放在 Nacos `reuse-configuration.yaml`。
 
 蒲公英、Tailscale、节点小宝等组网地址变化时，优先只修改公共配置中的基础设施变量，例如：
 
@@ -98,7 +98,7 @@ custom:
 
 ## Nacos 配置
 
-本地 `application.yml` 只保存连接 Nacos 需要的启动入口和 `spring.config.import` 远程配置列表。当前 MCP 加载：
+基础 `application.yml` 保持服务名、端口和默认 profile；各 `application-*.yml` 保存对应环境连接 Nacos 的启动入口和 `spring.config.import` 远程配置列表。当前 MCP 加载：
 
 ```text
 logging.yml
@@ -355,7 +355,7 @@ MCP OAuth 过滤器保存请求级 `McpVerifiedCaller`，进入请求前清除�
 
 MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要生成不可变版本，发布前后核对内容和 latest；基于 namespace/资源的 Redis 锁防止合作实例并发覆盖，旧制品不能夺回 latest。没有构建信息、锁不可用、读回不匹配都停止发布，服务启动保持 fail-soft。Registry 应配置可用 Redis；关闭 Registry 不依赖 Redis 或构建信息。`public-base-url` 可声明受控 HTTP(S) 网关根地址，拒绝凭据、路径、查询和片段，未配置时保留 REF；`transport-protocol` 只接受 HTTP(S)，不与 MCP transport 混用。注册日志仅记录固定原因码或 SDK 数字错误码。
 
-本仓继续只发布现有两个占位工具及对应目录/调用技能；不包含医疗报告、医院连接器、天气或其他来源业务。应用当前版本为 `1.0.5`，本次由 `1.0.4` 递增以完成个人 Maven 坐标隔离；未据本机打包推定 Registry 或应用制品已发布。
+本仓继续只发布现有两个占位工具及对应目录/调用技能；不包含医疗报告、医院连接器、天气或其他来源业务。应用当前版本为 `1.0.6`，本次由 `1.0.5` 递增以移除 dev Nacos 地址的 localhost 回退；未据本机打包推定 Registry 或应用制品已发布。
 
 公共 RPC 契约固定为 `com:rpc-api:1.0.7`，包含供执行层使用的强制验签入口；本服务不调用旧的可选签名方法来授予 Agent 身份。JWT 签发/验签共用运行时 `security.jwt.secret`（Base64 编码且解码至少 32 字节），无内置默认密钥；测试使用独立合成密钥。
 
@@ -364,3 +364,9 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 个人公共库使用 `com:utils:1.5.1` 与 `com:rpc-api:1.0.7`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
+
+## 本机 dev 私有连接配置
+
+以 MCP 服务根目录为工作目录启动时，Spring Boot 默认加载 `config/application-dev.properties`，无需修改基础 `application.yml` 或预先 export。该文件仅保存 Nacos 地址、dev namespace、group、username、password 五个连接键，权限为 0600，路径已精确加入 Git ignore；不得提交真实凭据。操作系统环境变量优先于 properties；test/prod 不加载 dev 私有文件，dev 默认 namespace 继续为 `github-dev`。
+
+dev 地址按 `GITHUB_NACOS_DEV_SERVER_ADDR` → `GITHUB_NACOS_SERVER_ADDR` 解析，缺失则配置解析失败，不回退 127.0.0.1。Console 使用 18080，Java SDK 的 `server-addr` 使用 8848，gRPC 使用 9848；Console 地址不能替代 SDK 地址。中间件、认证和业务配置仍由独立 Nacos 环境提供。

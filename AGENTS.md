@@ -2,6 +2,14 @@
 
 本文件是 `mcp` 服务的 AI 编码入口。AI 修改本项目代码前，必须先阅读本文件，再按任务风险阅读 `README.md` 和 `docs/ai-coding` 下的规范。
 
+## GitHub 分支与交付管理
+
+- 长期分支为 `main`、`test`、`preprod`；三者禁止删除或 force push。新任务先核对仓库、HEAD、dirty、worktree 并 fetch，从最新 origin/main 建独立短分支；同一任务可核对后复用。
+- 功能分支承载完整功能及测试、文档、契约、migration 和精确依赖；进入 test/preprod 后保留源分支，正式候选在最新 main 上独立验证完整功能与跨仓配套。
+- 本任务短分支完整合入各仓 main、main 推送并远端读回、完整包含关系确认后才清理；保护三条长期分支、未合入或仍有唯一提交、dirty 及其他 worktree 使用中的分支，不用强删绕过保护。
+- Git、验证、CI、制品、部署和真实验收分别取证；GitHub 不继承公司自动部署 lane。已授权 commit/push/merge 按当前任务完成，tag/发布/部署不从分支名推定授权。
+- 命名、集成、清理、版本与交付按 `docs/ai-coding/BRANCHING_SPEC.md` 和 `VERSIONING_SPEC.md`，不使用旧 main-only 或 personal/dev 流程。
+
 ## 项目定位
 
 - 项目名称：`mcp`
@@ -55,12 +63,12 @@
 
 - `mcp` 作为 MCP Server 生产端，默认 Server 名称为 `mcp`，通过 `mcp.server.registry.*` 自动发布到 Nacos MCP 管理。
 - `mcp.server.registry.enabled=false` 时不发布 MCP Server；本地编译和单元测试默认关闭。
-- MCP Server 默认使用 `mcp-streamable` + `REF` endpoint，引用 Nacos 服务发现中的 `mcp` 服务；Java 微服务不要配置成 Stdio。
-- MCP Server 的工具清单、JSON Schema、协议路径和版本属于代码契约；启停、版本号、endpoint 引用和可达地址放 Nacos 配置中心。
+- MCP Server 使用 `mcp-streamable`；显式 public-base-url 时宣告受控网关地址，空值兼容 REF 服务发现。Java 微服务不要配置成 Stdio。
+- MCP Server 的工具清单、JSON Schema 和协议路径属于代码契约；Registry 版本由 BuildProperties 与规范化内容摘要自动生成，启停和受控 endpoint 地址放 Nacos。
 - `mcp` 作为工具接入 AgentCard 生产端，默认 Agent 名称为 `mcp-tool-agent`。
 - `mcp.agent.registry.enabled=false` 时不连接 Nacos AI Registry，便于本地编译和测试。
 - AgentCard 地址必须是 `ai` / `ai-agent` 所在网络可达地址；容器部署应显式配置 `mcp.agent.registry.advertise-host` 和必要的端口。
-- AgentCard 的接口路径、技能、描述或可达地址变化时递增 `mcp.agent.registry.card-version`。
+- AgentCard 内容或稳定地址变化时自动生成新内容修订；同内容重启不增版，旧制品不抢占较新 latest，发布后读回核对；不要求手工递增旧 card-version 配置。
 - Nacos AI Registry 只保存工具发现元数据，不保存三方系统真实凭据、OAuth token 或业务密钥。
 
 ## AI 工程门禁

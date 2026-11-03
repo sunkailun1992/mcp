@@ -62,6 +62,7 @@ docs/ai-coding/
 
 ## 必读结论
 
+- 长期保留 main/test/preprod；完整交付 main 并远端确认后才清理本任务短分支，保护未合入、dirty 与其他 worktree。详见分支规范。
 - Controller 返回统一使用 `com.kellen.utils.ApiResponse`。
 - Controller 接口严格优先使用 RESTful 风格：资源路径用复数名词，`GET` 查询、`POST` 新增、`PUT` 修改、`DELETE` 删除，标准 CRUD 不使用 `/save`、`/update`、`/remove`、`/select`、`/page` 等动词路径。
 - Controller 类必须添加 `@Tag`，方法必须添加 `@Operation`，避免 OpenAPI 展示默认 `xxx-controller`、`list_1`、`save_1` 等不可读名称。
