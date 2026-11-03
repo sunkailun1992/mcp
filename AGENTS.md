@@ -6,7 +6,7 @@
 
 - 项目名称：`mcp`
 - 项目类型：MCP 三方系统接入服务 / AI 工具接入中心
-- 技术栈：Java 17、Spring Boot、Gradle、MyBatis-Plus、Nacos、Nacos AI Registry、Dubbo、`com.kellen:utils`、`com.kellen:rpc-api`
+- 技术栈：Java 17、Spring Boot、Gradle、MyBatis-Plus、Nacos、Nacos AI Registry、Dubbo、`com:utils`、`com:rpc-api`
 - 同级依赖：`../rpc-api` 提供跨服务 RPC 接口和 DTO 契约；`../utils` 提供公共响应、认证上下文、租户、多数据源和基础工具；`../gateway` 负责路由；`../ai` 和 `../ai-agent` 负责 AI 编排和模型执行；`../admin-web` 负责后台配置页面
 - 核心风险：未复用 `user` 统一鉴权、工具越权调用、租户隔离失效、三方系统出站凭据泄露、AI 工具幻觉调用、SSRF、批量数据外发、调用审计缺失、Nacos AI Registry MCP Server / AgentCard 地址不可达
 
@@ -30,6 +30,13 @@
 14. `docs/ai-coding/SECURITY_CODING_SPEC.md`：涉及接口、权限、三方凭据、工具调用、数据隔离、脱敏、SSRF、上传下载、SQL 或测试安全时必须阅读。
 15. `docs/ai-coding/UTILS_PUBLIC_SPEC.md`：涉及公共规范、错误码、数据库、乐观锁或 `utils` 能力时阅读。
 16. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、AI Registry、共享 dataId 或 `application.yml` import 前必读。
+
+## 个人公共库坐标
+
+- 本仓仅依赖个人 `com:utils:1.5.1` 与 `com:rpc-api:1.0.7`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
+- 跨仓同步禁止把公司 `com.kellen:utils` / `com.kellen:rpc-api` 坐标带回个人依赖或发布配置；不得因同名制品或共用仓库地址撤销 group 隔离。
+- Java package 的 `com.kellen.*` 保持不变；Maven group 隔离不属于 Java 包名迁移。
+- 凭据只从用户私有配置/环境变量读取，不复制进仓库；远端已存在或 metadata 曾列出的版本不覆盖。
 
 ## 项目边界
 

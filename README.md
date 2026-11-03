@@ -15,8 +15,8 @@
 - Seata Server 2.7.0
 - Seata Client 2.6.0
 - MyBatis-Plus
-- 公共能力依赖 `com.kellen:utils`
-- RPC 契约依赖 `com.kellen:rpc-api`
+- 公共能力依赖 `com:utils`
+- RPC 契约依赖 `com:rpc-api`
 - 测试框架统一使用 JUnit 5
 
 ## 服务职责
@@ -349,12 +349,18 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com.kellen:utils:1.4.9`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:1.5.1`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
 MCP OAuth 过滤器保存请求级 `McpVerifiedCaller`，进入请求前清除残留身份、结束时清理。验签失败才返回 OAuth challenge，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
 MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要生成不可变版本，发布前后核对内容和 latest；基于 namespace/资源的 Redis 锁防止合作实例并发覆盖，旧制品不能夺回 latest。没有构建信息、锁不可用、读回不匹配都停止发布，服务启动保持 fail-soft。Registry 应配置可用 Redis；关闭 Registry 不依赖 Redis 或构建信息。`public-base-url` 可声明受控 HTTP(S) 网关根地址，拒绝凭据、路径、查询和片段，未配置时保留 REF；`transport-protocol` 只接受 HTTP(S)，不与 MCP transport 混用。注册日志仅记录固定原因码或 SDK 数字错误码。
 
-本仓继续只发布现有两个占位工具及对应目录/调用技能；不包含医疗报告、医院连接器、天气或其他来源业务。版本由 `1.0.3` 升到 `1.0.4`，仅为本地候选，未发布 Registry 或制品。
+本仓继续只发布现有两个占位工具及对应目录/调用技能；不包含医疗报告、医院连接器、天气或其他来源业务。应用当前版本为 `1.0.5`，本次由 `1.0.4` 递增以完成个人 Maven 坐标隔离；未据本机打包推定 Registry 或应用制品已发布。
 
 公共 RPC 契约固定为 `com:rpc-api:1.0.7`，包含供执行层使用的强制验签入口；本服务不调用旧的可选签名方法来授予 Agent 身份。JWT 签发/验签共用运行时 `security.jwt.secret`（Base64 编码且解码至少 32 字节），无内置默认密钥；测试使用独立合成密钥。
+
+## 个人 Maven 坐标边界
+
+个人公共库使用 `com:utils:1.5.1` 与 `com:rpc-api:1.0.7`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+
+公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。

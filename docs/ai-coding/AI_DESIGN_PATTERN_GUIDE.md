@@ -4,7 +4,7 @@
 
 ## 1. 总原则
 
-- 先识别当前语言、框架和模块边界；本项目默认按 Java 17、Spring Boot、MyBatis-Plus、Nacos AI Registry、Gradle 和 `com.kellen:utils` 生态落地。
+- 先识别当前语言、框架和模块边界；本项目默认按 Java 17、Spring Boot、MyBatis-Plus、Nacos AI Registry、Gradle 和 `com:utils` 生态落地。
 - 优先沿用当前分层：Controller、BO、Query、VO、Entity、Mapper、Service、ServiceQuery、ServiceResults。
 - 设计模式必须服务 MCP 边界：工具可见性、工具调用权限、租户隔离、凭据保护、SSRF 防护、重试熔断、调用审计、MCP Server 发布和 AgentCard 发布。
 - 不允许为简单 CRUD 硬套 Factory、Manager、Abstract 层或过深继承。

@@ -15,7 +15,7 @@
 
 ## 依赖和 CI
 
-- Gradle 依赖使用 `implementation "com.kellen:rpc-api:${rpcApiVersion}"`。
+- Gradle 依赖使用 `implementation "com:rpc-api:${rpcApiVersion}"`。
 - 本地联调前先在 `../rpc-api` 执行 `./gradlew publishToMavenLocal`。
 - CI 必须先 checkout `sunkailun1992/rpc-api` 并 `publishToMavenLocal`，再编译本服务。
 - 修改 RPC 契约时，至少同步编译 `../rpc-api`、provider 和当前 consumer。
