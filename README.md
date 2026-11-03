@@ -4,6 +4,10 @@
 
 当前项目保留 Java 微服务基础工程、统一异常处理、DDL 入口、Nacos profile、AI 编码规范和最小 MCP 工具接口；真实三方系统 connector 需要按业务系统逐步接入。
 
+## 启动入口
+
+主应用类为 `com.kellen.McpApplication`，IDE 可直接运行该类。Gradle `bootRun` 与可执行 JAR 的入口由 `springBoot.mainClass` 统一指定；仍使用 `./gradlew bootRun` 或 `java -jar build/libs/mcp.jar`，工作目录保持为当前服务仓库根目录。
+
 ## 技术基线
 
 - Java 17
