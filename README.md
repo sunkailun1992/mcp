@@ -93,8 +93,6 @@ custom:
   infra-xxl-job-admin: http://${custom.infra-host}:19090/xxl-job-admin
   infra-elasticsearch-addr: ${custom.infra-host}:9200
   infra-elasticsearch-uri: http://${custom.infra-host}:9200
-  admin-server-url: <ADMIN_SERVER_URL>
-  zipkin-base-url: <ZIPKIN_BASE_URL>
   local-service-host: <LOCAL_SERVICE_HOST>
 ```
 
@@ -117,8 +115,6 @@ redis.yaml
 rabbitmq.yaml
 elasticsearch.yaml
 seata.yaml
-  zipkin.yaml
-  admin.yaml
   dubbo.yaml
   xxl-job.yaml
   a2a.yaml
@@ -353,7 +349,7 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com:utils:1.5.2`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:1.5.3`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
 MCP OAuth 过滤器保存请求级 `McpVerifiedCaller`，进入请求前清除残留身份、结束时清理。验签失败才返回 OAuth challenge，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
@@ -365,7 +361,7 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 
 ## 个人 Maven 坐标边界
 
-个人公共库使用 `com:utils:1.5.2` 与 `com:rpc-api:1.0.7`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+个人公共库使用 `com:utils:1.5.3` 与 `com:rpc-api:1.0.7`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
 
@@ -374,3 +370,9 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 以 MCP 服务根目录为工作目录启动时，Spring Boot 默认加载 `config/application-dev.properties`，无需修改基础 `application.yml` 或预先 export。该文件仅保存 Nacos 地址、dev namespace、group、username、password 五个连接键，权限为 0600，路径已精确加入 Git ignore；不得提交真实凭据。操作系统环境变量优先于 properties；test/prod 不加载 dev 私有文件，dev 默认 namespace 继续为 `github-dev`。
 
 dev 地址按 `GITHUB_NACOS_DEV_SERVER_ADDR` → `GITHUB_NACOS_SERVER_ADDR` 解析，缺失则配置解析失败，不回退 127.0.0.1。Console 使用 18080，Java SDK 的 `server-addr` 使用 8848，gRPC 使用 9848；Console 地址不能替代 SDK 地址。中间件、认证和业务配置仍由独立 Nacos 环境提供。
+
+## 本批可观测性接入
+
+公共能力精确消费 `com:utils:1.5.3`（本批仅 Maven Local 验证，未发布远端）。九服务共享 `actuator.yaml` 暴露 health/info/prometheus；除 health 外仍要求 `actuatorReq` 运维令牌，空值或错误值失败关闭。`logging.yml` 使用 ECS 固定字段白名单，未知 MDC、原始消息、正文和异常不进入采集结果；OTel agent 标准 `trace_id/span_id` 与业务会话 ID 分开。应用指标带固定 application/environment 标签，禁止动态业务 ID。
+
+Admin/Zipkin 模板与三 profile 的 imports 已退役。服务 JVM 的可选 OTel agent 由统一启动入口负责，不通过全局 JAVA_TOOL_OPTIONS 注入 Gradle 或测试。部署时 Java 指标只由 Micrometer Prometheus 提供，OTEL_METRICS_EXPORTER 与 OTEL_LOGS_EXPORTER 均为 none；监控组件、配置发布和实际采集仍须独立验证。回滚须恢复匹配的制品与配置，先恢复旧 dataId 再回退旧消费者，不能用已删除的配置项假装完成回滚。
