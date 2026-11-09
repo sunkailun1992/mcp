@@ -4,19 +4,18 @@ import com.baomidou.mybatisplus.extension.ddl.IDdl;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * MyBatis-Plus自动维护DDL。
+ * MyBatis-Plus 自动维护 PostgreSQL DDL。
  * <p>
- * MCP 当前只保留公共基础设施脚本入口。后续新增工具目录、三方系统凭据索引、
- * OAuth token 元数据或调用审计表时，再以新的 `db/mcp-*.sql` 文件追加，
+ * MCP 当前只维护 PostgreSQL 公共基础表。后续新增工具目录、三方系统凭据索引、
+ * OAuth token 元数据或调用审计表时，再以新的 db/postgresql/mcp-*.sql 文件追加，
  * 不回改已经执行过的历史脚本。
  */
 @Component
-public class MysqlDdl implements IDdl {
+public class PostgresqlDdl implements IDdl {
 
     /**
      * 当前项目数据源。
@@ -30,7 +29,7 @@ public class MysqlDdl implements IDdl {
      * @return void
      * @author sunkailun
      */
-    public MysqlDdl(DataSource dataSource) {
+    public PostgresqlDdl(DataSource dataSource) {
         this.dataSource = dataSource; // 保存当前应用数据源，交给MyBatis-Plus DDL运行器执行脚本。
     }
 
@@ -54,7 +53,8 @@ public class MysqlDdl implements IDdl {
      */
     @Override
     public List<String> getSqlFiles() {
-        List<String> sqlFiles = new ArrayList<>(); // 创建DDL脚本列表，保持脚本执行顺序可控。
-        return sqlFiles; // 返回 MCP 当前需要自动维护的DDL脚本。
+        return List.of(
+                "db/postgresql/common-infra-schema.sql"
+        );
     }
 }

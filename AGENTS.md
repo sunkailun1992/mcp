@@ -48,7 +48,7 @@
 
 ## 个人公共库坐标
 
-- 本仓仅依赖个人 `com:utils:1.5.3` 与 `com:rpc-api:1.0.7`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
+- 本仓仅依赖个人 `com:utils:1.6.0` 与 `com:rpc-api:1.0.7`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
 - 跨仓同步禁止把公司 `com.kellen:utils` / `com.kellen:rpc-api` 坐标带回个人依赖或发布配置；不得因同名制品或共用仓库地址撤销 group 隔离。
 - Java package 的 `com.kellen.*` 保持不变；Maven group 隔离不属于 Java 包名迁移。
 - 凭据只从用户私有配置/环境变量读取，不复制进仓库；远端已存在或 metadata 曾列出的版本不覆盖。
@@ -90,7 +90,7 @@
 
 - 子智能体可以并行分析 Controller、Service、connector、credential、audit、DDL、admin-web 调用、gateway 路由和 Nacos 配置。
 - 不允许多个 worker 同时修改同一核心 connector、凭据解析逻辑、权限规则、审计表或 DDL 脚本。
-- MCP 服务全新或空业务库首次启动前，必须先在目标业务库手动执行 `../utils/src/main/resources/db/common-infra-schema.sql`；Seata AT 会在 `DataSource` 初始化时先检查 `undo_log`，不能依赖应用首次启动自动创建该表。
+- MCP 服务全新或空业务库首次启动前，必须先在目标业务库手动执行 `../utils/src/main/resources/db/postgresql/common-infra-schema.sql`；Seata AT 会在 `DataSource` 初始化时先检查 `undo_log`，不能依赖应用首次启动自动创建该表。
 - 最终工具权限、凭据边界、租户隔离、AI Registry 注册和测试结论必须由主智能体统一判断。
 
 ## 验证命令

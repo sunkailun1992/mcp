@@ -71,5 +71,3 @@ spring:
       - "optional:nacos:dubbo.yaml?refreshEnabled=true"
       # a2a.yaml：Nacos AI Registry / A2A AgentCard 公共入口配置。
       - "optional:nacos:a2a.yaml?refreshEnabled=true"
-      # xxl-job.yaml：XXL-JOB 执行器配置。
-      - "optional:nacos:xxl-job.yaml?refreshEnabled=true"
