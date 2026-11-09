@@ -48,7 +48,7 @@
 
 ## 个人公共库坐标
 
-- 本仓仅依赖个人 `com:utils:1.6.1` 与 `com:rpc-api:1.0.7`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
+- 本仓仅依赖个人 `com:utils:1.6.2` 与 `com:rpc-api:1.0.7`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
 - 跨仓同步禁止把公司 `com.kellen:utils` / `com.kellen:rpc-api` 坐标带回个人依赖或发布配置；不得因同名制品或共用仓库地址撤销 group 隔离。
 - Java package 的 `com.kellen.*` 保持不变；Maven group 隔离不属于 Java 包名迁移。
 - 凭据只从用户私有配置/环境变量读取，不复制进仓库；远端已存在或 metadata 曾列出的版本不覆盖。
