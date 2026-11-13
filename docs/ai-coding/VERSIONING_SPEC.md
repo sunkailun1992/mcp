@@ -36,7 +36,7 @@ version = '1.0.0'
 
 ## 公共包和消费者
 
-- 本个人项目只消费 `com:utils:1.5.3` 与 `com:rpc-api:1.0.7`。公司同名公共库属于 `com.kellen` group；跨仓同步不得将公司 `com.kellen:utils` / `com.kellen:rpc-api` 坐标带回个人依赖或发布配置，共用 Maven 地址也不改变这一隔离。Java 包名 `com.kellen.*` 不随 Maven group 改动。
+- 本个人项目只消费 `com:utils:1.6.6` 与 `com:rpc-api:1.0.9`。公司同名公共库属于 `com.kellen` group；跨仓同步不得将公司 `com.kellen:utils` / `com.kellen:rpc-api` 坐标带回个人依赖或发布配置，共用 Maven 地址也不改变这一隔离。Java 包名 `com.kellen.*` 不随 Maven group 改动。
 - `utils` 等公共包改动后，先提升公共包版本并发布到 Maven Local 验证。
 - 消费者只引用已经存在的精确版本，不使用动态版本、版本范围或未发布的版本。
 - 消费者升级公共包后，必须至少执行编译验证；涉及认证、租户、多数据源、Seata、Dubbo、网关头、序列化或数据库行为时补充测试。

@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre
-COPY build/libs/mcp-1.0.0.jar /app/mcp-1.0.0.jar
+FROM eclipse-temurin:21-jre
+COPY build/libs/mcp.jar /app/mcp.jar
 WORKDIR /app/
-ENTRYPOINT ["java", "-jar", "/app/mcp-1.0.0.jar"]
+ENTRYPOINT ["java", "-jar", "/app/mcp.jar"]
