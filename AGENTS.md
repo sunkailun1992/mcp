@@ -11,11 +11,13 @@
 
 ## GitHub 分支与交付管理
 
-- 长期分支为 `main`、`test`、`preprod`；三者禁止删除或 force push。新任务先核对仓库、HEAD、dirty、worktree 并 fetch，从最新 origin/main 建独立短分支；同一任务可核对后复用。
-- 功能分支承载完整功能及测试、文档、契约、migration 和精确依赖；进入 test/preprod 后保留源分支，正式候选在最新 main 上独立验证完整功能与跨仓配套。
-- 本任务短分支完整合入各仓 main、main 推送并远端读回、完整包含关系确认后才清理；保护三条长期分支、未合入或仍有唯一提交、dirty 及其他 worktree 使用中的分支，不用强删绕过保护。
+- 长期分支只保留 `main`，禁止删除或 force push，不再创建 `test`、`preprod`。新任务先核对仓库、HEAD、dirty、worktree 并 fetch，从最新 origin/main 建独立短分支；同一任务可核对后复用。
+- 功能分支承载完整功能及测试、文档、契约、migration 和精确依赖；正式候选在最新 main 上独立验证完整功能与跨仓配套。
+- 本任务短分支完整合入各仓 main、main 推送并远端读回、完整包含关系确认后才清理；保护 `main`、未合入或仍有唯一提交、dirty 及其他 worktree 使用中的分支，不用强删绕过保护。
 - Git、验证、CI、制品、部署和真实验收分别取证；GitHub 不继承公司自动部署 lane。已授权 commit/push/merge 按当前任务完成，tag/发布/部署不从分支名推定授权。
 - 命名、集成、清理、版本与交付按 `docs/ai-coding/BRANCHING_SPEC.md` 和 `VERSIONING_SPEC.md`，不使用旧 main-only 或 personal/dev 流程。
+- 维护者本人，以及维护者本机用维护者账号运行的 Claude / Codex 会话，可以直接合并到 `main`：合并前本机验证命令全过，合并后看 CI，红了马上修。推送后读回精确提交的 CI 结论。
+- 云端会话（`CLAUDE_CODE_REMOTE=true`，或会话里没有本机配置）只推会话分支，由维护者或本机会话合并。其他人的代码走 PR：CI 全绿、维护者审核批准、评审对话解决后再合并。代理不修改 ruleset 与仓库权限，除非用户当场明确要求。
 
 ## 项目定位
 
@@ -36,7 +38,7 @@
 5. `docs/ai-coding/AI_COMMENT_STYLE_GUIDE.md`：确认注释规范、自解释优先、禁止注释掉死代码和排版要求。
 6. `docs/ai-coding/AI_DESIGN_PATTERN_GUIDE.md`：确认 connector、adapter、strategy、registry、audit 等 MCP 设计模式边界。
 7. `docs/ai-coding/BRANCHING_SPEC.md`：确认分支命名、短分支生命周期、release/hotfix、tag 和清理规则。
-8. `docs/ai-coding/ENVIRONMENT_CONFIG_SPEC.md`：确认环境、Nacos namespace、Java profile 和前端/小程序边界。
+8. `docs/ai-coding/ENVIRONMENT_CONFIG_SPEC.md`：确认环境、Nacos namespace、Java profile 和前端边界。
 9. `docs/ai-coding/VERSIONING_SPEC.md`：确认 `group = 'com'`、`version = '1.0.0'`、补丁递增和消费者同步规则。
 10. `docs/ai-coding/RPC_API_CODING_SPEC.md`：涉及 Dubbo RPC provider、consumer、接口或 DTO 时必须阅读。
 11. `docs/ai-coding/TESTING_SPEC.md`：确认 SpringBootTest、真实 HTTP 集成测试、三方系统 stub 和安全测试边界。
@@ -85,6 +87,7 @@
 - 完成后必须按 `docs/ai-coding/AI_ENGINEERING_GUARDRAILS.md` 做风险分级、Definition of Done、测试证据、安全检查、风险和回滚说明。
 - 涉及当前用户上下文、租户、数据权限、`user` 签名校验复用、出站三方凭据、Webhook、SSRF 或批量外发时，必须有针对性测试或清楚说明未验证项。
 - 测试分层按 `docs/ai-coding/TESTING_SPEC.md` 执行；核心工具调用不能只靠 mock 或纯对象断言，必须补 Spring Boot 级别测试或三方系统 stub 测试。
+- 测试必须稳定可重复，按 `docs/ai-coding/TESTING_SPEC.md`「测试稳定性」：不依赖时序、连接复用或执行顺序；偶发失败按缺陷处理，不用重试、跳过或删除测试掩盖。
 
 ## 多智能体协作规则
 

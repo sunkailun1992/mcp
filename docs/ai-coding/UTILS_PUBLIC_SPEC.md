@@ -13,7 +13,7 @@
 ## 环境与分支规则
 
 - 个人环境使用独立 GitHub Nacos namespace，与公司环境隔离；真实环境入口和私有 dev 连接配置以 ENVIRONMENT_CONFIG_SPEC.md 为准。
-- 长期保留 main/test/preprod；新任务从最新 main 建完整功能分支，test/preprod 集成后保留，完整功能及配套进入 main 并远端确认后才清理。
+- 长期只保留 main；新任务从最新 main 建完整功能分支，完整功能及配套进入 main 并远端确认后才清理。
 - 保护未合入、唯一提交、dirty 和其他 worktree；完整流程与授权按 BRANCHING_SPEC.md，不沿用旧 personal/dev 或公司部署流程。
 - 正式环境不制造测试数据；配置、数据库、发布与回滚均按明确任务授权及独立验证执行。
 - archive/utils-markdown/ 下保留原始历史事实，不作为当前分支、公司协作平台或环境指令。
