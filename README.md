@@ -105,26 +105,22 @@ custom:
 logging.yml
 reuse-configuration.yaml
 traffic-governance.yaml
+actuator.yaml
+security-jwt.yaml
 security-auth.yaml
 swagger.yaml
-mcp.yaml
 mcp-spring.yaml
 mybatis-plus.yaml
 redis.yaml
-rabbitmq.yaml
-elasticsearch.yaml
 seata.yaml
-  dubbo.yaml
-  a2a.yaml
+dubbo.yaml
+local-canary.yaml
 ```
 
 配置分工：
 
-- `mcp.yaml`：工具目录、connector 开关、allowlist、限流、重试、超时等非敏感业务配置，以及 `mcp.server.registry.*` MCP Server 自动发布配置。
-- `mcp.yaml`：同时可放 `mcp.oauth.resource-server.*` 的非敏感校验策略，例如 issuer、audience、scope 名称、MCP 外部基地址和授权服务器地址。`external-base-url` 与 `authorization-server` 必须指向外部可访问的 gateway / auth 地址，本地默认可用 `${MCP_EXTERNAL_BASE_URL:http://localhost:7100}` 与 `${MCP_AUTHORIZATION_SERVER:http://localhost:7100}`，测试和生产通过环境变量覆盖为对应网关域名。
-- `mcp-spring.yaml`：MCP 服务 Spring、数据源和服务私有基础配置。
-- `rabbitmq.yaml`：RabbitMQ 连接和消息基础配置，MCP 需要消息能力时必须导入。
-- `a2a.yaml`：Nacos AI Registry / A2A 公共协议和命名约定。
+- `mcp-spring.yaml`：MCP 服务的主/灰度数据源，`mcp.server.registry.*` MCP Server 自动发布，`mcp.agent.registry.*` AgentCard 发布，以及 `mcp.oauth.resource-server.*` 的非敏感校验策略（issuer、audience、MCP 外部基地址和授权服务器地址）。原 `mcp.yaml` 已合并进来。`external-base-url` 与 `authorization-server` 必须指向外部可访问的 gateway / auth 地址，github-dev 模板用 `${GITHUB_GATEWAY_PUBLIC_URL:http://localhost:7100}`。
+- 共享基础设施（`reuse-configuration.yaml`、`mybatis-plus.yaml`、`redis.yaml`、`seata.yaml`、`dubbo.yaml`）和安全与可观测性配置按上面的导入清单加载；RabbitMQ、Elasticsearch 与 A2A 共享配置已退役，不再导入。
 
 配置边界：
 
@@ -347,7 +343,7 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com:utils:1.6.7`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:1.6.8`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
 MCP OAuth 过滤器保存请求级 `McpVerifiedCaller`，进入请求前清除残留身份、结束时清理。验签失败才返回 OAuth challenge，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
@@ -359,7 +355,7 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 
 ## 个人 Maven 坐标边界
 
-个人公共库使用 `com:utils:1.6.7` 与 `com:rpc-api:1.0.9`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+个人公共库使用 `com:utils:1.6.8` 与 `com:rpc-api:1.0.9`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
 

@@ -65,5 +65,3 @@ spring:
       - "optional:nacos:seata.yaml?refreshEnabled=true"
       # dubbo.yaml：Dubbo RPC、注册中心和协议配置。
       - "optional:nacos:dubbo.yaml?refreshEnabled=true"
-      # a2a.yaml：Nacos AI Registry / A2A AgentCard 公共入口配置。
-      - "optional:nacos:a2a.yaml?refreshEnabled=true"
