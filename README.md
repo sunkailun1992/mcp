@@ -267,29 +267,18 @@ GET    /mcp/manage/audit-logs?current=1&size=10
 - 分页接口使用 `@GetMapping(params = {"current", "size"})` 表达分页参数存在性。
 - `options` 只表示轻量选择项集合，不承接完整管理列表。
 
-## DDL
+## 表结构
 
-MyBatis-Plus DDL 入口在：
-
-```text
-src/main/java/com/kellen/bean/PostgresqlDdl.java
-```
-
-当前 MCP 模块只声明公共基础设施脚本：
+当前 MCP 模块还没有业务表，库里只有 Seata AT 的 `undo_log`。表结构只由本服务的 Flyway 迁移维护：
 
 ```text
-db/postgresql/common-infra-schema.sql
+src/main/resources/db/migration/V1__baseline.sql         Seata AT 回滚日志表 undo_log，只在空库执行
+src/main/resources/db/migration/V2__drop_ddl_history.sql 删除旧 DDL 方式的执行记录表
 ```
 
-全新或空业务库首次启动前，必须先在目标业务库手动执行同级 `../utils/src/main/resources/db/postgresql/common-infra-schema.sql`，先建 `ddl_history` 和 Seata AT `undo_log`。Seata AT 会在 `DataSource` 初始化时先检查 `undo_log`，不能依赖应用首次启动自动创建该表。
+表结构只由本服务 `src/main/resources/db/migration` 的 Flyway 迁移管理；已提交的迁移文件不修改，改结构只新增 `V<下一个>__<说明>.sql`；新库保持空库，由服务首次启动时的 Flyway 建表，不手工执行任何公共脚本。已有的库由 `baseline-on-migrate` 把版本 1 登记为基线、不执行 V1，再执行 V2 起的迁移。Seata AT 的 `undo_log` 在 `V1__baseline.sql` 里；数据源块固定 `spring.datasource.dynamic.seata: true`，不设总开关；建池时 Seata AT 代理就检查该表，utils 在创建任何 Bean 之前先执行 Flyway 迁移，新空库首次启动即建出该表。
 
-后续新增 MCP 业务表时：
-
-- SQL 放在 `src/main/resources/db/postgresql/*.sql`。
-- 先检查目标数据库 `ddl_history`。
-- 已执行或无法确认是否执行过的 SQL 文件不得回改。
-- 新增变更使用新的 SQL 文件，并追加到 `PostgresqlDdl#getSqlFiles()`。
-- 工具目录、connector、凭据索引、token 元数据、调用审计等表字段、Entity、BO、Query、VO、ServiceQuery、ServiceResults 和测试同步补齐。
+后续新增 MCP 业务表时新增 `V<下一个>__<说明>.sql`，实体继承 utils 的 `TenantEntityBase`（无租户的表继承 `EntityBase`），列按 `docs/ai-coding/PROJECT_CODING_SPEC.md` 的公共治理字段补齐；工具目录、connector、凭据索引、token 元数据、调用审计等表字段、Entity、BO、Query、VO、ServiceQuery、ServiceResults 和测试同步补齐。
 
 ## 安全边界
 
@@ -343,7 +332,7 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com:utils:1.6.8`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:1.7.0`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
 MCP OAuth 过滤器保存请求级 `McpVerifiedCaller`，进入请求前清除残留身份、结束时清理。验签失败才返回 OAuth challenge，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
@@ -355,7 +344,7 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 
 ## 个人 Maven 坐标边界
 
-个人公共库使用 `com:utils:1.6.8` 与 `com:rpc-api:1.0.9`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+个人公共库使用 `com:utils:1.7.0` 与 `com:rpc-api:1.0.9`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
 
