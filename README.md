@@ -278,7 +278,7 @@ src/main/resources/db/migration/V2__drop_ddl_history.sql 删除旧 DDL 方式的
 
 表结构只由本服务 `src/main/resources/db/migration` 的 Flyway 迁移管理；已提交的迁移文件不修改，改结构只新增 `V<下一个>__<说明>.sql`；新库保持空库，由服务首次启动时的 Flyway 建表，不手工执行任何公共脚本。已有的库由 `baseline-on-migrate` 把版本 1 登记为基线、不执行 V1，再执行 V2 起的迁移。Seata AT 的 `undo_log` 在 `V1__baseline.sql` 里；数据源块固定 `spring.datasource.dynamic.seata: true`，不设总开关；建池时 Seata AT 代理就检查该表，utils 在创建任何 Bean 之前先执行 Flyway 迁移，新空库首次启动即建出该表。
 
-后续新增 MCP 业务表时新增 `V<下一个>__<说明>.sql`，实体继承 utils 的 `TenantEntityBase`（无租户的表继承 `EntityBase`），列按 `docs/ai-coding/PROJECT_CODING_SPEC.md` 的公共治理字段补齐；工具目录、connector、凭据索引、token 元数据、调用审计等表字段、Entity、BO、Query、VO、ServiceQuery、ServiceResults 和测试同步补齐。
+后续新增 MCP 业务表时新增 `V<下一个>__<说明>.sql`，实体继承 utils 的 `TenantEntityBase`，列按 `docs/ai-coding/PROJECT_CODING_SPEC.md` 的公共治理字段补齐；工具目录、connector、凭据索引、token 元数据、调用审计等表字段、Entity、BO、Query、VO、ServiceQuery、ServiceResults 和测试同步补齐。
 
 ## 安全边界
 
