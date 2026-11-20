@@ -8,5 +8,5 @@ Follow these project rules:
 - Keep Java code under `src/main/java/com/kellen`; tests belong under `src/test/java/com/kellen`.
 - Do not nest sibling repositories such as `utils`, `user`, `gateway`, `admin-web`, `ai`, or `ai-agent` inside this repository.
 - Keep Dubbo RPC interfaces and DTOs in sibling `rpc-api`; this service only implements provider code or calls published contracts.
-- Do not change existing secrets, RabbitMQ addresses, Nacos addresses, database URLs, or production configuration values. Report file paths and line numbers only.
+- Do not change existing secrets, RocketMQ addresses, Nacos addresses, database URLs, or production configuration values. Report file paths and line numbers only.
 - Third-party credentials, OAuth tokens, MCP tool permissions, tenant isolation, connector allowlists, and tool-call audit semantics must be enforced by backend services.
