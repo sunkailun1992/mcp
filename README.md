@@ -322,7 +322,7 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com:utils:2.0.3`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:2.0.5`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
 请求身份是 utils 资源服务器的认证结果（用户令牌为 `FleetAuthenticationToken`，`SecurityUser` 来自 user 服务的业务上下文），请求结束由 utils 清理；只有令牌无效才返回 Bearer 质询，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
@@ -334,7 +334,7 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 
 ## 个人 Maven 坐标边界
 
-个人公共库使用 `com:utils:2.0.3` 与 `com:rpc-api:2.0.0`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+个人公共库使用 `com:utils:2.0.5` 与 `com:rpc-api:2.0.0`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
 
@@ -365,3 +365,5 @@ Admin/Zipkin 模板与三 profile 的 imports 已退役。服务 JVM 的可选 O
 `1.2.6` 将公共依赖升到 `com:utils:1.6.7`：修复 Dubbo 上下文透传过滤器拿不到 Spring 绑定的灰度与租户配置（提供方误拒全部灰度授权、灰度实例不带授权也放行、自定义租户头名不生效），本服务代码不变。
 
 `1.4.0` 为第5阶段（不兼容）：入站认证换成 Keycloak。删除自写的 `McpOAuthResourceServerFilter`、`McpOAuthResourceServerProperties`、`McpOAuthFilterConfig`、`McpOAuthMetadataController` 与 `McpVerifiedCaller`，改由 `com:utils:2.0.3` 的标准资源服务器校验（RS256、Keycloak 签发方、受众 `github-mcp`），受保护资源元数据（RFC 9728）用 Spring Security 7 内置实现并声明 Keycloak 为授权服务器；三套 profile 不再导入 `security-jwt.yaml`，`com:rpc-api` 升到 `2.0.0`。Nacos `mcp-spring.yaml` 里旧的 `mcp.oauth.resource-server.*` 已无人读取，随第5阶段收尾删除。
+
+`1.4.1` 将 `com:utils` 升到 `2.0.5`，修复业务上下文的 Dubbo 引用：此前 utils 把引用写成资源服务器自动配置里的嵌套配置，本服务主类在 `com.kellen` 包、默认组件扫描覆盖 utils，嵌套配置被提前当作普通配置处理，早于 `@EnableDubbo` 登记引用注解处理器，引用建不出来，所有用户令牌都按“用户不存在”返回 401（2.0.4 改为单独的自动配置，只由 imports 文件加载）；引用与本服务其他 Dubbo 引用一样在启动时不初始化（2.0.5，`init = false`），第一次需要业务上下文的请求才初始化并连接。本服务代码不变。

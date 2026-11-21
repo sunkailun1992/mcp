@@ -59,8 +59,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: sunkailun1992/utils
-          # Match com:utils:2.0.3 exactly when dependency main advances.
-          ref: 92ccc28e6d72872f0e79ae5f55c3a2bf3e4b7cd3 # com:utils 2.0.3
+          # Match com:utils:2.0.5 exactly when dependency main advances.
+          ref: c45aaab4f9592b9bf83289ad712b67adc243f945 # com:utils 2.0.5
           path: .ci-utils
 
       - name: Hide CI dependency checkout from scans
