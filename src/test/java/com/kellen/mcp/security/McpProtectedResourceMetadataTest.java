@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kellen.mcp.controller.McpToolController;
 import com.kellen.mcp.service.McpToolCatalogService;
-import com.kellen.mcp.support.FakeIssuer;
+import com.kellen.security.oauth2.test.FakeIssuer;
 import com.kellen.security.SecurityUser;
 import com.kellen.security.oauth2.FleetResourceServerAutoConfiguration;
 import com.kellen.security.oauth2.SecurityContextResult;

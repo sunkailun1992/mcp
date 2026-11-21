@@ -322,7 +322,7 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com:utils:2.0.6`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:2.0.8`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
 请求身份是 utils 资源服务器的认证结果（用户令牌为 `FleetAuthenticationToken`，`SecurityUser` 来自 user 服务的业务上下文），请求结束由 utils 清理；只有令牌无效才返回 Bearer 质询，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
@@ -334,7 +334,7 @@ MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要�
 
 ## 个人 Maven 坐标边界
 
-个人公共库使用 `com:utils:2.0.6` 与 `com:rpc-api:2.0.0`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+个人公共库使用 `com:utils:2.0.8` 与 `com:rpc-api:2.0.0`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
 
@@ -371,3 +371,5 @@ Admin/Zipkin 模板与三 profile 的 imports 已退役。服务 JVM 的可选 O
 `1.4.2` 去掉 dev、test、prod 三套配置里 Nacos 账号与口令的默认值（原为 `nacos`，即 Nacos 管理员账号）：`custom.nacos-username`、`custom.nacos-password` 只引用 `GITHUB_NACOS_USERNAME`、`GITHUB_NACOS_PASSWORD`，缺值时启动即失败，不再静默以管理员登录（CWE-1392 默认凭据）；值由私有环境提供（IDEA 的 env 文件、Jar 的 application.properties 或容器同名环境变量）。
 
 `1.4.3` 将 `com:utils` 升到 `2.0.6`：服务没配受众时只收受众含 `github-api` 的令牌（落实“受众默认 github-api”，漏配不再变成不校验受众）；本服务的 Nacos 配置照旧显式写受众，行为不变。
+
+`1.4.4` 将 `com:utils` 升到 `2.0.8`（第 5 阶段推迟的小问题）：令牌有效但 user 里没有该用户时由 401 改 403「账号未开通」，网关 BFF 不再反复重新登录；资源服务器核对令牌的 `user_id` 属于它的 `sub`（OIDC Core §5.7），不一致回 403；`iat` 必须有且不能晚于当前时间 60 秒以上；没有业务上下文提供方时启动失败。测试改用 utils 发布的测试夹具 `FakeIssuer`（`com:utils:2.0.8:test-fixtures`），不再自带副本。
