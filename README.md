@@ -367,3 +367,5 @@ Admin/Zipkin 模板与三 profile 的 imports 已退役。服务 JVM 的可选 O
 `1.4.0` 为第5阶段（不兼容）：入站认证换成 Keycloak。删除自写的 `McpOAuthResourceServerFilter`、`McpOAuthResourceServerProperties`、`McpOAuthFilterConfig`、`McpOAuthMetadataController` 与 `McpVerifiedCaller`，改由 `com:utils:2.0.3` 的标准资源服务器校验（RS256、Keycloak 签发方、受众 `github-mcp`），受保护资源元数据（RFC 9728）用 Spring Security 7 内置实现并声明 Keycloak 为授权服务器；三套 profile 不再导入 `security-jwt.yaml`，`com:rpc-api` 升到 `2.0.0`。Nacos `mcp-spring.yaml` 里旧的 `mcp.oauth.resource-server.*` 已无人读取，随第5阶段收尾删除。
 
 `1.4.1` 将 `com:utils` 升到 `2.0.5`，修复业务上下文的 Dubbo 引用：此前 utils 把引用写成资源服务器自动配置里的嵌套配置，本服务主类在 `com.kellen` 包、默认组件扫描覆盖 utils，嵌套配置被提前当作普通配置处理，早于 `@EnableDubbo` 登记引用注解处理器，引用建不出来，所有用户令牌都按“用户不存在”返回 401（2.0.4 改为单独的自动配置，只由 imports 文件加载）；引用与本服务其他 Dubbo 引用一样在启动时不初始化（2.0.5，`init = false`），第一次需要业务上下文的请求才初始化并连接。本服务代码不变。
+
+`1.4.2` 去掉 dev、test、prod 三套配置里 Nacos 账号与口令的默认值（原为 `nacos`，即 Nacos 管理员账号）：`custom.nacos-username`、`custom.nacos-password` 只引用 `GITHUB_NACOS_USERNAME`、`GITHUB_NACOS_PASSWORD`，缺值时启动即失败，不再静默以管理员登录（CWE-1392 默认凭据）；值由私有环境提供（IDEA 的 env 文件、Jar 的 application.properties 或容器同名环境变量）。
