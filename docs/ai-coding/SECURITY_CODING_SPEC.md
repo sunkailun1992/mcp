@@ -5,8 +5,8 @@
 ## 权限和认证
 
 - 工具目录、工具调用、connector 配置、凭据状态、调用审计和批量同步等接口必须有明确权限码、租户校验和测试覆盖。
-- MCP 不实现独立入站鉴权；JWT、三方客户端身份、OpenAPI HMAC 签名校验和 nonce 防重放统一由 `user` 服务负责。
-- 外部系统调用 MCP/Kellen 时，必须先通过 `user` 的统一认证链路；服务间需要签名校验时优先复用 `AuthOpenApiRpcService` 或 `/auth/open/signatures/verify`。
+- MCP 不实现独立入站鉴权；访问令牌由 Keycloak 签发，utils 资源服务器校验签名、签发方与受众 `github-mcp`，权限码与活动租户来自 `user` 的业务上下文。
+- 外部系统调用 MCP 时，先按受保护资源元数据（RFC 9728）发现 Keycloak 并取令牌；不恢复 HMAC 签名、nonce 或自写的令牌过滤器。
 - 登录态相关接口必须沿用统一认证上下文；退出登录、用户禁用或密码变更后的 token 清理和失效规则必须与 `user` 服务保持一致。
 - MCP 服务不得自行绕过统一认证体系，也不得保留可继续访问工具调用接口的旧 token。
 - AI、前端、三方系统回调传入的用户、租户、权限、工具 allowlist、凭据 ID 不可信，必须由后端上下文和受控配置重新判断。

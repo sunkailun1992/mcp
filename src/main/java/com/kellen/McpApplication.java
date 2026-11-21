@@ -2,7 +2,6 @@ package com.kellen;
 
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import com.kellen.mcp.config.McpAgentRegistryProperties;
-import com.kellen.mcp.config.McpOAuthResourceServerProperties;
 import com.kellen.mcp.config.McpServerRegistryProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -28,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 @EnableDiscoveryClient
 	@EnableConfigurationProperties({
 			McpAgentRegistryProperties.class,
-			McpOAuthResourceServerProperties.class,
 			McpServerRegistryProperties.class
 	})
 @EnableDubbo

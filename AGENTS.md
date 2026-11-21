@@ -25,7 +25,7 @@
 - 项目类型：MCP 三方系统接入服务 / AI 工具接入中心
 - 技术栈：Java 21、Spring Boot、Gradle、MyBatis-Plus、Nacos、Nacos AI Registry、Dubbo、`com:utils`、`com:rpc-api`
 - 同级依赖：`../rpc-api` 提供跨服务 RPC 接口和 DTO 契约；`../utils` 提供公共响应、认证上下文、租户、多数据源和基础工具；`../gateway` 负责路由；`../ai` 和 `../ai-agent` 负责 AI 编排和模型执行；`../admin-web` 负责后台配置页面
-- 核心风险：未复用 `user` 统一鉴权、工具越权调用、租户隔离失效、三方系统出站凭据泄露、AI 工具幻觉调用、SSRF、批量数据外发、调用审计缺失、Nacos AI Registry MCP Server / AgentCard 地址不可达
+- 核心风险：未复用统一鉴权（Keycloak 令牌经 utils 资源服务器校验）、工具越权调用、租户隔离失效、三方系统出站凭据泄露、AI 工具幻觉调用、SSRF、批量数据外发、调用审计缺失、Nacos AI Registry MCP Server / AgentCard 地址不可达
 
 ## 修改前阅读顺序
 
@@ -50,7 +50,7 @@
 
 ## 个人公共库坐标
 
-- 本仓仅依赖个人 `com:utils:1.7.2` 与 `com:rpc-api:1.0.9`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
+- 本仓仅依赖个人 `com:utils:2.0.3` 与 `com:rpc-api:2.0.0`。公司同名制品使用 `com.kellen` group；即使远端 Maven 地址相同，也不能混用完整坐标。
 - 跨仓同步禁止把公司 `com.kellen:utils` / `com.kellen:rpc-api` 坐标带回个人依赖或发布配置；不得因同名制品或共用仓库地址撤销 group 隔离。
 - Java package 的 `com.kellen.*` 保持不变；Maven group 隔离不属于 Java 包名迁移。
 - 凭据只从用户私有配置/环境变量读取，不复制进仓库；远端已存在或 metadata 曾列出的版本不覆盖。
@@ -58,7 +58,7 @@
 ## 项目边界
 
 - `mcp` 负责 MCP 工具目录、三方系统连接器、工具调用编排、调用审计、限流、重试、Nacos MCP Server 发布和 AgentCard 发布。
-- `mcp` 的入站认证、JWT、三方客户端身份、OpenAPI HMAC 签名和 nonce 防重放必须统一复用 `../user`，不得在本服务重复实现。
+- `mcp` 的入站认证统一由 utils 资源服务器负责：只收 Keycloak 签给受众 `github-mcp` 的 RS256 令牌，用户的权限码与活动租户经 `../user` 的业务上下文取得；受保护资源元数据（RFC 9728）用 Spring Security 内置实现。不得在本服务另写鉴权过滤器、HMAC 签名或 nonce 校验。
 - `mcp` 不负责模型执行；模型执行继续在 `../ai-agent`，AI 编排和 AgentCard 消费继续在 `../ai`。
 - `mcp` 不直接把三方系统密钥返回给 AI、前端或调用方；只暴露受控工具和稳定结构化结果。
 - 新增 connector 时必须明确系统边界、鉴权方式、租户映射、权限码、数据范围、审计字段、超时、重试和降级策略。
@@ -82,10 +82,10 @@
 
 ## AI 工程门禁
 
-- 工具调用、`user` 鉴权复用、出站 connector 凭据、批量同步、导入导出、Webhook、跨租户查询、MCP Server 发布和 AgentCard 发布默认中高风险。
+- 工具调用、统一鉴权复用、出站 connector 凭据、批量同步、导入导出、Webhook、跨租户查询、MCP Server 发布和 AgentCard 发布默认中高风险。
 - 新增或修改功能前，必须按 `AI_AUTOMATION_WORKFLOW.md` 整理需求说明、验收标准和开发手册。
 - 完成后必须按 `docs/ai-coding/AI_ENGINEERING_GUARDRAILS.md` 做风险分级、Definition of Done、测试证据、安全检查、风险和回滚说明。
-- 涉及当前用户上下文、租户、数据权限、`user` 签名校验复用、出站三方凭据、Webhook、SSRF 或批量外发时，必须有针对性测试或清楚说明未验证项。
+- 涉及当前用户上下文、租户、数据权限、统一鉴权与受保护资源元数据、出站三方凭据、Webhook、SSRF 或批量外发时，必须有针对性测试或清楚说明未验证项。
 - 测试分层按 `docs/ai-coding/TESTING_SPEC.md` 执行；核心工具调用不能只靠 mock 或纯对象断言，必须补 Spring Boot 级别测试或三方系统 stub 测试。
 - 测试必须稳定可重复，按 `docs/ai-coding/TESTING_SPEC.md`「测试稳定性」：不依赖时序、连接复用或执行顺序；偶发失败按缺陷处理，不用重试、跳过或删除测试掩盖。
 
@@ -111,7 +111,7 @@ bash scripts/check-secrets.sh
 ## 禁止事项
 
 - 禁止信任 AI、前端或三方系统传入的当前用户、租户、权限、工具 allowlist 和凭据字段。
-- 禁止在 MCP 内重复实现入站三方鉴权；外部系统调用 MCP/Kellen 的身份、签名和 nonce 校验必须走 `user`。
+- 禁止在 MCP 内重复实现入站鉴权；外部系统调用 MCP 的身份统一由 Keycloak 签发、utils 资源服务器校验，权限码由 `user` 给出。
 - 禁止把出站三方系统 API key、OAuth token、refresh token、Webhook secret、签名密钥、数据库密码或 Nacos 密码写入仓库、README 示例或测试数据。
 - 禁止把三方系统原始响应、敏感字段、完整认证头、完整 URL 查询串、患者/用户隐私数据直接写入日志或返回给 AI。
 - 禁止让工具参数直接决定服务端访问的任意 URL；所有 connector 目标必须来自受控配置，防止 SSRF。

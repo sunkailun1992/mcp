@@ -42,27 +42,20 @@
 
 ## 鉴权边界
 
-`mcp` 不签发入站 token，不保存三方客户端密钥。所有进入 Kellen 的身份认证、JWT、三方客户端身份、OpenAPI HMAC 签名校验和 nonce 防重放统一由同级 `user` 服务负责。
+`mcp` 不签发入站 token，不保存三方客户端密钥。第5阶段起入站身份统一由 Keycloak 签发、`com:utils` 的资源服务器校验：只收 RS256，签发方为 Keycloak 域地址（`spring.security.oauth2.resourceserver.jwt.issuer-uri`），受众必须含 `github-mcp`；用户令牌的权限码与活动租户经 user 服务的业务上下文取得（`X-Tenant-Id` 只能选用户所属租户）。本服务不另写鉴权过滤器、HMAC 签名或 nonce 校验。
 
-MCP 对外 HTTP 接入使用 OAuth2 Resource Server 模式：
+MCP 对外 HTTP 接入是标准 OAuth 2.0 资源服务器（MCP 授权规范、RFC 9728 受保护资源元数据）：
 
 ```text
-外部 MCP 客户端 -> gateway /oauth2/token -> user 签发短期 Bearer token -> gateway /api/mcp -> mcp 校验 token
+MCP 客户端 -> /api/mcp 返回 401，WWW-Authenticate 带 resource_metadata
+          -> GET /.well-known/oauth-protected-resource[/api/mcp]，authorization_servers 为 Keycloak 签发方
+          -> 向 Keycloak 取受众 github-mcp 的访问令牌 -> Authorization: Bearer <token> 调 /api/mcp
 ```
 
-`mcp` 只校验：
-
-- `Authorization: Bearer <token>`。
-- JWT `issuer` 符合 `mcp.oauth.resource-server.issuer`。
-- JWT `aud` / `resource` 命中 `mcp.oauth.resource-server.audiences`。
-- JWT `scope` 包含 `mcp.tools.read` 或 `mcp.tools.call`。
-
-scope 到权限码映射：
-
-| OAuth scope | MCP 权限码 |
-| --- | --- |
-| `mcp.tools.read` | `mcp:tool:list` |
-| `mcp.tools.call` | `mcp:tool:call` |
+- 元数据由 Spring Security 7 内置过滤器发布、免认证：`resource` 按取元数据的地址推出（`/.well-known/oauth-protected-resource/api/mcp` 给出 MCP 入口地址，站点级给出站点本身），`authorization_servers` 为签发方（utils 2.0.3 起），`bearer_methods_supported` 为 `header`。
+- 401 带 RFC 6750 Bearer 质询与 `resource_metadata`；受众不是 `github-mcp` 的令牌（例如网关转给业务后端、受众 `github-api` 的用户令牌）一律 401。
+- 权限码沿用 `mcp:tool:list`（查目录、`initialize`、`tools/list`）与 `mcp:tool:call`（`tools/call`），由 user 服务按角色给出；受众正确但没有权限码返回 403。
+- 经网关接入 MCP 客户端暂未开放：网关会话链对元数据路径要求登录，Spring Cloud Gateway 5 未配 `trusted-proxies` 时不向下游加 X-Forwarded 头，元数据会给出 mcp 自身地址；随 MCP 客户端动态注册一起做（Keycloak 官方 MCP 指南），直连 mcp 端口时元数据正确。
 
 MCP 服务只做业务授权补充：
 
@@ -71,9 +64,7 @@ MCP 服务只做业务授权补充：
 - 工具是否处于启用状态。
 - 某次工具调用是否满足参数、数据范围、限流和审计要求。
 
-外部系统应统一配置 gateway 地址，不直接暴露 `user` 或 `mcp` 服务端口。MCP 客户端通过 `GET /.well-known/oauth-protected-resource` 发现资源元数据，通过其中的 `authorization_servers` 发现授权服务器，再调用 `POST /oauth2/token` 换短期 access token。未携带 token、token 无效或 scope 不满足时，MCP 服务按 OAuth Bearer challenge 返回 `WWW-Authenticate`，便于通用 MCP 客户端自动发现授权配置。
-
-服务间需要保留旧企业内部 HMAC 校验时，优先复用 `user` 暴露的 `AuthOpenApiRpcService` 或 `/auth/open/signatures/verify` 能力。
+外部系统应统一配置 gateway 地址，不直接暴露 `user` 或 `mcp` 服务端口。
 
 MCP 主动调用外部系统时如需出站 API Key、OAuth token 或 Webhook secret，应按具体 connector 单独设计配置和存储方案。不要为了预留而新增通用 `mcp-secrets.yaml`。
 
@@ -106,7 +97,6 @@ logging.yml
 reuse-configuration.yaml
 traffic-governance.yaml
 actuator.yaml
-security-jwt.yaml
 security-auth.yaml
 swagger.yaml
 mcp-spring.yaml
@@ -119,7 +109,7 @@ local-canary.yaml
 
 配置分工：
 
-- `mcp-spring.yaml`：MCP 服务的主/灰度数据源，`mcp.server.registry.*` MCP Server 自动发布，`mcp.agent.registry.*` AgentCard 发布，以及 `mcp.oauth.resource-server.*` 的非敏感校验策略（issuer、audience、MCP 外部基地址和授权服务器地址）。原 `mcp.yaml` 已合并进来。`external-base-url` 与 `authorization-server` 必须指向外部可访问的 gateway / auth 地址，github-dev 模板用 `${GITHUB_GATEWAY_PUBLIC_URL:http://localhost:7100}`。
+- `mcp-spring.yaml`：MCP 服务的主/灰度数据源，`mcp.server.registry.*` MCP Server 自动发布，`mcp.agent.registry.*` AgentCard 发布，以及资源服务器的签发方引用、只收 RS256 与受众 `github-mcp`（`spring.security.oauth2.resourceserver.jwt.*`）等非敏感校验策略（issuer、audience、MCP 外部基地址和授权服务器地址）。原 `mcp.yaml` 已合并进来。`external-base-url` 与 `authorization-server` 必须指向外部可访问的 gateway / auth 地址，github-dev 模板用 `${GITHUB_GATEWAY_PUBLIC_URL:http://localhost:7100}`。
 - 共享基础设施（`reuse-configuration.yaml`、`mybatis-plus.yaml`、`redis.yaml`、`seata.yaml`、`dubbo.yaml`）和安全与可观测性配置按上面的导入清单加载；旧消息队列、Elasticsearch 与 A2A 共享配置已退役（消息队列已换 RocketMQ），不再导入。
 
 配置边界：
@@ -332,19 +322,19 @@ bash scripts/check-secrets.sh
 
 ## 通用安全与架构同步
 
-公共安全依赖精确固定为 `com:utils:1.7.2`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
+公共安全依赖精确固定为 `com:utils:2.0.3`。Actuator 除 health 外要求运行时配置 `security.actuator.token` 并在 `actuatorReq` 请求头提交令牌；缺失或错误令牌一律拒绝。令牌由独立环境配置提供，不写入仓库。隔离的消费者回归测试只装配真实 MVC/Actuator 与安全链，不连接 Nacos、数据库、MQ 或远程服务；它不替代目标环境验收。
 
-MCP OAuth 过滤器保存请求级 `McpVerifiedCaller`，进入请求前清除残留身份、结束时清理。验签失败才返回 OAuth challenge，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
+请求身份是 utils 资源服务器的认证结果（用户令牌为 `FleetAuthenticationToken`，`SecurityUser` 来自 user 服务的业务上下文），请求结束由 utils 清理；只有令牌无效才返回 Bearer 质询，connector 异常交由原有业务异常链处理。协议 `isError` 跟随工具返回状态，不把拒绝结果标为成功。
 
 MCP Server 与 AgentCard 注册采用制品构建信息加规范化内容摘要生成不可变版本，发布前后核对内容和 latest；基于 namespace/资源的 Redis 锁防止合作实例并发覆盖，旧制品不能夺回 latest。没有构建信息、锁不可用、读回不匹配都停止发布，服务启动保持 fail-soft。Registry 应配置可用 Redis；关闭 Registry 不依赖 Redis 或构建信息。`public-base-url` 可声明受控 HTTP(S) 网关根地址，拒绝凭据、路径、查询和片段，未配置时保留 REF；`transport-protocol` 只接受 HTTP(S)，不与 MCP transport 混用。注册日志仅记录固定原因码或 SDK 数字错误码。
 
 本仓继续只发布现有两个占位工具及对应目录/调用技能；不包含医疗报告、医院连接器、天气或其他来源业务。应用当前版本为 `1.0.6`，本次由 `1.0.5` 递增以移除 dev Nacos 地址的 localhost 回退；未据本机打包推定 Registry 或应用制品已发布。
 
-公共 RPC 契约固定为 `com:rpc-api:1.0.9`，包含供执行层使用的强制验签入口；本服务不调用旧的可选签名方法来授予 Agent 身份。JWT 签发/验签共用运行时 `security.jwt.secret`（Base64 编码且解码至少 32 字节），无内置默认密钥；测试使用独立合成密钥。
+公共 RPC 契约固定为 `com:rpc-api:2.0.0`（第5阶段删除了旧的会话与开放签名契约）。本服务不签发、不用共享密钥验签任何令牌：访问令牌由 Keycloak 签发，资源服务器按签发方的公钥（JWKS）校验；测试用本机回环上的假签发方现签 RS256 令牌。
 
 ## 个人 Maven 坐标边界
 
-个人公共库使用 `com:utils:1.7.2` 与 `com:rpc-api:1.0.9`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
+个人公共库使用 `com:utils:2.0.3` 与 `com:rpc-api:2.0.0`；同一远端 Aliyun Maven 地址中的公司同名制品属于 `com.kellen` group。制品名仍是 `utils` / `rpc-api`，以完整 groupId:artifactId:version 区分，不能混用公司坐标或覆盖既有版本。Java 包名继续使用 `com.kellen.*`，不随 Maven groupId 改动。
 
 公共库先以明确版本发布 Maven Local 供消费者验证；远端发布和 POM/JAR 校验由公共库流程独立完成。凭据保留在用户私有配置或环境变量中，不写入仓库。`com:utils:1.5.0` 已在远端 metadata 出现，本轮不复用，即使其单文件路径返回404。
 
@@ -373,3 +363,5 @@ Admin/Zipkin 模板与三 profile 的 imports 已退役。服务 JVM 的可选 O
 `1.2.4` 为第1阶段底座升级：Java 21、Gradle 9.9.1、Spring Boot 4.0.9、Spring Cloud 2025.1.4、Nacos 服务端 3.3.0（客户端暂保持 3.2.2，见上方技术基线），公共依赖 `com:utils:1.6.6`（传递 `com:fleet-observability:0.1.4`）与 `com:rpc-api:1.0.9`，OTel BOM 1.67.0 对齐 Java agent 2.33.1。业务接口与配置不变；运行环境须为 Java 21。
 
 `1.2.6` 将公共依赖升到 `com:utils:1.6.7`：修复 Dubbo 上下文透传过滤器拿不到 Spring 绑定的灰度与租户配置（提供方误拒全部灰度授权、灰度实例不带授权也放行、自定义租户头名不生效），本服务代码不变。
+
+`1.4.0` 为第5阶段（不兼容）：入站认证换成 Keycloak。删除自写的 `McpOAuthResourceServerFilter`、`McpOAuthResourceServerProperties`、`McpOAuthFilterConfig`、`McpOAuthMetadataController` 与 `McpVerifiedCaller`，改由 `com:utils:2.0.3` 的标准资源服务器校验（RS256、Keycloak 签发方、受众 `github-mcp`），受保护资源元数据（RFC 9728）用 Spring Security 7 内置实现并声明 Keycloak 为授权服务器；三套 profile 不再导入 `security-jwt.yaml`，`com:rpc-api` 升到 `2.0.0`。Nacos `mcp-spring.yaml` 里旧的 `mcp.oauth.resource-server.*` 已无人读取，随第5阶段收尾删除。
